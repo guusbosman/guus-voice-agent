@@ -36,36 +36,37 @@ Flow:
 
 ## Custom Source Access Pattern
 
-Expose your private data as tools callable by the agent.
+Keep this simple for MVP: expose Google Sheets and DynamoDB through a few agent tools.
 
 Example tools:
 
-- `search_knowledge_base(query)`
-- `get_customer_profile(customer_id)`
-- `lookup_internal_policy(topic)`
-- `get_order_status(order_id)`
+- `sheet_lookup(sheet_id, worksheet, filters)`
+- `sheet_append_row(sheet_id, worksheet, row_data)`
+- `dynamo_get_item(table_name, key)`
+- `dynamo_query(table_name, key_condition, limit)`
 
 Each tool should:
 
-- Validate caller identity and tenant scope.
-- Apply source-level authorization checks.
+- Validate caller identity.
+- Apply source-level authorization checks (which sheets/tables this user may access).
 - Time out quickly with graceful fallback.
 - Return structured JSON suitable for model grounding.
 
 ## Data Retrieval Options
 
-1. Unstructured content (docs, notes, manuals)
-- Index chunks in a vector database.
-- Retrieve top-k by semantic similarity.
-- Return snippets with source identifiers.
+1. Google Sheets-backed data
+- Use a service account with scoped access only to approved spreadsheets.
+- Normalize sheet rows into predictable JSON field names.
+- Cache read results briefly to reduce API latency and quota pressure.
 
-2. Structured business data
-- Query SQL/REST backends directly via tool adapters.
-- Use strict schemas and input validation.
+2. DynamoDB-backed data
+- Use table-specific adapters to hide raw key expressions from the model.
+- Validate all query inputs against allowlisted table/index names.
+- Return compact result objects (avoid raw unbounded table dumps).
 
-3. Hybrid responses
-- Combine vector retrieval with transactional data lookup.
-- Include citations in tool payload for traceability.
+3. Simple hybrid responses
+- Start with a DynamoDB lookup first, then enrich with Google Sheets info when needed.
+- Include source identifiers in payloads for traceability (`source: \"dynamodb:table\"` or `source: \"sheet:sheet_id\"`).
 
 ## Safety and Governance
 
