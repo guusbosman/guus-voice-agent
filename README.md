@@ -15,8 +15,8 @@ Single-repo implementation for a Tulip-branded voice agent product:
 - Tulip logo branding
 - Animated smiley avatar with states: `idle`, `listening`, `thinking`, `speaking`, `happy`
 - Text conversation panel
-- Voice input controls (browser speech recognition for MVP preview)
-- Speech synthesis for assistant responses where browser support exists
+- Voice session controls backed by LiveKit room streaming
+- Remote audio playback from agent track subscriptions
 
 ### API (`api/`)
 
@@ -26,6 +26,7 @@ Single-repo implementation for a Tulip-branded voice agent product:
 - `POST /sessions/{session_id}/end`
 - `POST /chat/message`
 - `POST /livekit/token` (real LiveKit JWT with room join grant)
+- `/livekit/token` also creates/ensures room and dispatches `LIVEKIT_AGENT_NAME`
 
 Persistence is DynamoDB-first, with in-memory fallback for local development.
 
@@ -101,7 +102,7 @@ Reference task definition template:
 
 ## Next Implementation Steps
 
-1. Wire API session creation to deterministic LiveKit room naming used by `agent-service`.
-2. Add Google Sheets and DynamoDB tool calls inside `agent-service/agent.py`.
-3. Wire real voice events from the agent into avatar state updates.
-4. Add auth and rate limiting middleware to API endpoints.
+1. Add Google Sheets and DynamoDB tool calls inside `agent-service/agent.py`.
+2. Wire realtime agent events to richer avatar behaviors (nod/smile/think transitions).
+3. Add auth and rate limiting middleware to API endpoints.
+4. Split web bundle chunks to reduce initial payload size.

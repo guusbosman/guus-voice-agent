@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Room, RoomEvent, Track } from 'livekit-client'
 import AvatarFace from './components/AvatarFace'
 import TulipLogo from './components/TulipLogo'
 
@@ -12,7 +13,9 @@ export default function App() {
   const [sessionId, setSessionId] = useState(null)
   const [apiOnline, setApiOnline] = useState(true)
   const [connecting, setConnecting] = useState(false)
+  const [voiceConnecting, setVoiceConnecting] = useState(false)
   const [avatarState, setAvatarState] = useState('idle')
+  const [roomName, setRoomName] = useState('')
   const [textInput, setTextInput] = useState('')
   const [messages, setMessages] = useState([
     { id: makeId(), role: 'assistant', text: 'Hello. I can chat by text now and voice later.' }
@@ -23,12 +26,14 @@ export default function App() {
   const [micName, setMicName] = useState('Not detected')
   const [micLevel, setMicLevel] = useState(0)
   const [micSensitivity, setMicSensitivity] = useState(2.6)
-  const recognitionRef = useRef(null)
+  const roomRef = useRef(null)
   const micStreamRef = useRef(null)
   const audioContextRef = useRef(null)
-  const analyserRef = useRef(null)
   const meterRafRef = useRef(null)
   const micSensitivityRef = useRef(2.6)
+  const remoteAudioContainerRef = useRef(null)
+  const remoteAudioElementsRef = useRef(new Map())
+  const remoteAudioCountRef = useRef(0)
 
   const reconnectApi = async () => {
     setConnecting(true)
@@ -64,11 +69,11 @@ export default function App() {
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach((track) => track.stop())
       }
+      if (roomRef.current) {
+        roomRef.current.disconnect()
+      }
+      remoteAudioElementsRef.current.forEach((el) => el.remove())
     }
-  }, [])
-
-  const canUseSpeech = useMemo(() => {
-    return typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
   }, [])
 
   const stopMicMeter = () => {
@@ -108,7 +113,6 @@ export default function App() {
     }
 
     audioContextRef.current = audioContext
-    analyserRef.current = analyser
     meterRafRef.current = requestAnimationFrame(tick)
   }
 
@@ -116,7 +120,7 @@ export default function App() {
     if (!navigator?.mediaDevices?.getUserMedia) {
       setMicStatus('unsupported')
       setMicName('Browser does not support microphone access')
-      return
+      return false
     }
 
     try {
@@ -144,58 +148,115 @@ export default function App() {
 
       stopMicMeter()
       startMicMeter(stream)
+      return true
     } catch (_err) {
       setMicStatus('blocked')
       setMicName('Permission blocked or no microphone found')
       stopMicMeter()
+      return false
     }
   }
 
-  const handleStartVoice = () => {
-    if (!canUseSpeech) {
-      alert('Speech recognition is not supported in this browser.')
-      return
-    }
-    checkMicrophone()
+  const cleanupRemoteAudio = () => {
+    remoteAudioElementsRef.current.forEach((el) => el.remove())
+    remoteAudioElementsRef.current.clear()
+    remoteAudioCountRef.current = 0
+  }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    const recognition = new SpeechRecognition()
-    recognition.lang = 'en-US'
-    recognition.interimResults = true
-    recognition.continuous = true
+  const registerRoomListeners = (room) => {
+    room.on(RoomEvent.TrackSubscribed, (track, _pub, _participant) => {
+      if (track.kind !== Track.Kind.Audio) return
+      const audioElement = track.attach()
+      audioElement.autoplay = true
+      audioElement.playsInline = true
+      remoteAudioElementsRef.current.set(track.sid, audioElement)
+      remoteAudioContainerRef.current?.appendChild(audioElement)
+      remoteAudioCountRef.current += 1
+      setAvatarState('speaking')
+    })
 
-    recognition.onstart = () => {
-      setVoiceActive(true)
-      setAvatarState('listening')
-    }
-
-    recognition.onresult = (event) => {
-      let transcript = ''
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        transcript += event.results[i][0].transcript
+    room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      if (track.kind !== Track.Kind.Audio) return
+      const el = remoteAudioElementsRef.current.get(track.sid)
+      if (el) {
+        track.detach(el)
+        el.remove()
+        remoteAudioElementsRef.current.delete(track.sid)
       }
-      setTextInput(transcript)
-    }
+      remoteAudioCountRef.current = Math.max(0, remoteAudioCountRef.current - 1)
+      setAvatarState(remoteAudioCountRef.current > 0 ? 'speaking' : 'listening')
+    })
 
-    recognition.onerror = () => {
+    room.on(RoomEvent.Reconnecting, () => setAvatarState('thinking'))
+    room.on(RoomEvent.Reconnected, () => setAvatarState('listening'))
+    room.on(RoomEvent.Disconnected, () => {
       setVoiceActive(false)
+      setVoiceConnecting(false)
       setAvatarState('idle')
-    }
-
-    recognition.onend = () => {
-      setVoiceActive(false)
-      setAvatarState('idle')
-    }
-
-    recognition.start()
-    recognitionRef.current = recognition
+      cleanupRemoteAudio()
+    })
   }
 
-  const handleStopVoice = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop()
-      recognitionRef.current = null
+  const handleStartVoice = async () => {
+    if (voiceActive || voiceConnecting) return
+    setVoiceConnecting(true)
+    setAvatarState('thinking')
+
+    try {
+      const micOk = await checkMicrophone()
+      if (!micOk) throw new Error('Microphone not available')
+
+      const tokenRes = await fetch(`${API_BASE_URL}/livekit/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: 'demo-user' })
+      })
+      if (!tokenRes.ok) throw new Error('Unable to mint LiveKit token')
+      const tokenData = await tokenRes.json()
+      setSessionId(tokenData.session_id)
+      setRoomName(tokenData.room_name)
+
+      const room = new Room({
+        adaptiveStream: true,
+        dynacast: true
+      })
+      registerRoomListeners(room)
+
+      await room.connect(tokenData.livekit_url, tokenData.participant_token)
+      await room.localParticipant.setMicrophoneEnabled(true)
+      roomRef.current = room
+
+      setVoiceActive(true)
+      setVoiceConnecting(false)
+      setApiOnline(true)
+      setAvatarState('listening')
+    } catch (_err) {
+      setVoiceActive(false)
+      setVoiceConnecting(false)
+      setAvatarState('idle')
+      setApiOnline(false)
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          role: 'assistant',
+          text: 'Voice session failed to start. Check API, LiveKit credentials, and microphone permissions.'
+        }
+      ])
     }
+  }
+
+  const handleStopVoice = async () => {
+    if (roomRef.current) {
+      try {
+        await roomRef.current.localParticipant.setMicrophoneEnabled(false)
+      } catch (_err) {
+        // no-op: best effort shutdown
+      }
+      roomRef.current.disconnect()
+      roomRef.current = null
+    }
+    cleanupRemoteAudio()
     setVoiceActive(false)
     setAvatarState('idle')
     stopMicMeter()
@@ -281,6 +342,7 @@ export default function App() {
       <main className="grid">
         <section className="card avatar-card">
           <AvatarFace state={avatarState} />
+          {roomName && <div className="voice-room">Live room: {roomName}</div>}
           <div className="mic-panel">
             <div className="mic-row">
               <strong>Microphone:</strong>
@@ -306,10 +368,13 @@ export default function App() {
             <button className="btn secondary mic-check-btn" onClick={checkMicrophone}>Check Mic</button>
           </div>
           <div className="voice-controls">
-            <button className="btn" onClick={handleStartVoice} disabled={voiceActive}>Start Voice</button>
+            <button className="btn" onClick={handleStartVoice} disabled={voiceActive || voiceConnecting}>
+              {voiceConnecting ? 'Connecting...' : 'Start Voice'}
+            </button>
             <button className="btn secondary" onClick={handleStopVoice} disabled={!voiceActive}>Stop Voice</button>
           </div>
-          <p className="hint">Voice input uses browser speech recognition for MVP preview.</p>
+          <p className="hint">Voice uses LiveKit room streaming; text remains a fallback.</p>
+          <div ref={remoteAudioContainerRef} className="remote-audio-container" />
         </section>
 
         <section className="card chat-card">

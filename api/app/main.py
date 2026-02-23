@@ -30,6 +30,36 @@ app.add_middleware(
 repo = SessionRepository()
 
 
+async def ensure_room_and_dispatch(room_name: str) -> None:
+    async with livekit_api.LiveKitAPI(
+        url=settings.livekit_url,
+        api_key=settings.livekit_api_key,
+        api_secret=settings.livekit_api_secret,
+    ) as lkapi:
+        try:
+            await lkapi.room.create_room(livekit_api.CreateRoomRequest(name=room_name))
+        except Exception:
+            # Room may already exist.
+            pass
+
+        try:
+            existing = await lkapi.agent_dispatch.list_dispatch(
+                livekit_api.ListAgentDispatchRequest(room=room_name)
+            )
+            already_dispatched = any(
+                dispatch.agent_name == settings.livekit_agent_name for dispatch in existing.agent_dispatches
+            )
+            if not already_dispatched:
+                await lkapi.agent_dispatch.create_dispatch(
+                    livekit_api.CreateAgentDispatchRequest(
+                        room=room_name,
+                        agent_name=settings.livekit_agent_name,
+                    )
+                )
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Unable to dispatch agent: {exc}") from exc
+
+
 @app.get("/health")
 def healthcheck() -> dict:
     return {"status": "ok", "timestamp": now_iso()}
@@ -58,7 +88,7 @@ def end_session(session_id: str) -> SessionResponse:
 
 
 @app.post("/livekit/token", response_model=TokenResponse)
-def mint_livekit_token(payload: TokenRequest) -> TokenResponse:
+async def mint_livekit_token(payload: TokenRequest) -> TokenResponse:
     if not settings.livekit_url:
         raise HTTPException(status_code=500, detail="LIVEKIT_URL is not configured")
     if not settings.livekit_api_key or not settings.livekit_api_secret:
@@ -68,6 +98,8 @@ def mint_livekit_token(payload: TokenRequest) -> TokenResponse:
     expires = datetime.utcnow() + timedelta(seconds=settings.livekit_token_ttl_seconds)
     room_name = f"session-{record.session_id[:8]}"
     identity = f"{payload.user_id}-{record.session_id[:8]}"
+
+    await ensure_room_and_dispatch(room_name)
 
     participant_token = (
         livekit_api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret)

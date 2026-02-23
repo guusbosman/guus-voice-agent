@@ -171,6 +171,16 @@ body {
   letter-spacing: 0.01em;
 }
 
+.voice-room {
+  width: 100%;
+  font-size: 0.84rem;
+  color: #6b5b66;
+  background: #fff3e6;
+  border: 1px solid #ecd2bf;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
 .mic-panel {
   width: 100%;
   background: #fff6ee;
@@ -329,6 +339,12 @@ body {
   margin: 0;
   text-align: center;
   font-size: 0.9rem;
+}
+
+.remote-audio-container {
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 @keyframes mouthTalk {
