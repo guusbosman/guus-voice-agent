@@ -22,11 +22,13 @@ export default function App() {
   const [micStatus, setMicStatus] = useState('unknown')
   const [micName, setMicName] = useState('Not detected')
   const [micLevel, setMicLevel] = useState(0)
+  const [micSensitivity, setMicSensitivity] = useState(2.6)
   const recognitionRef = useRef(null)
   const micStreamRef = useRef(null)
   const audioContextRef = useRef(null)
   const analyserRef = useRef(null)
   const meterRafRef = useRef(null)
+  const micSensitivityRef = useRef(2.6)
 
   const reconnectApi = async () => {
     setConnecting(true)
@@ -100,7 +102,7 @@ export default function App() {
         sumSquares += normalized * normalized
       }
       const rms = Math.sqrt(sumSquares / data.length)
-      const normalizedLevel = Math.min(100, Math.round(rms * 280))
+      const normalizedLevel = Math.min(100, Math.round(rms * 280 * micSensitivityRef.current))
       setMicLevel(normalizedLevel)
       meterRafRef.current = requestAnimationFrame(tick)
     }
@@ -118,7 +120,13 @@ export default function App() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      })
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach((track) => track.stop())
       }
@@ -191,6 +199,12 @@ export default function App() {
     setVoiceActive(false)
     setAvatarState('idle')
     stopMicMeter()
+  }
+
+  const handleSensitivityChange = (event) => {
+    const next = Number(event.target.value)
+    setMicSensitivity(next)
+    micSensitivityRef.current = next
   }
 
   const sendText = async () => {
@@ -275,6 +289,19 @@ export default function App() {
             <div className="mic-name" title={micName}>{micName}</div>
             <div className="mic-meter">
               <div className="mic-meter-fill" style={{ width: `${micLevel}%` }} />
+            </div>
+            <div className="mic-sensitivity">
+              <label htmlFor="mic-sensitivity">Mic Sensitivity</label>
+              <input
+                id="mic-sensitivity"
+                type="range"
+                min="1"
+                max="4"
+                step="0.1"
+                value={micSensitivity}
+                onChange={handleSensitivityChange}
+              />
+              <span>{micSensitivity.toFixed(1)}x</span>
             </div>
             <button className="btn secondary mic-check-btn" onClick={checkMicrophone}>Check Mic</button>
           </div>
