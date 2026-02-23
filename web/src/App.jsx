@@ -320,14 +320,7 @@ export default function App() {
 
       setAvatarState('speaking')
       setMessages((prev) => [...prev, { id: makeId(), role: 'assistant', text: answer }])
-
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(answer)
-        utterance.onend = () => setAvatarState('happy')
-        window.speechSynthesis.speak(utterance)
-      } else {
-        setAvatarState('happy')
-      }
+      setAvatarState('happy')
 
       setTimeout(() => setAvatarState('idle'), 900)
     } catch (_err) {
