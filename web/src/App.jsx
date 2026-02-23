@@ -16,6 +16,8 @@ export default function App() {
   const [voiceConnecting, setVoiceConnecting] = useState(false)
   const [avatarState, setAvatarState] = useState('idle')
   const [roomName, setRoomName] = useState('')
+  const [voiceConnected, setVoiceConnected] = useState(false)
+  const [agentJoined, setAgentJoined] = useState(false)
   const [textInput, setTextInput] = useState('')
   const [messages, setMessages] = useState([
     { id: makeId(), role: 'assistant', text: 'Hello. I can chat by text now and voice later.' }
@@ -34,6 +36,7 @@ export default function App() {
   const remoteAudioContainerRef = useRef(null)
   const remoteAudioElementsRef = useRef(new Map())
   const remoteAudioCountRef = useRef(0)
+  const participantUnsubscribersRef = useRef([])
 
   const reconnectApi = async () => {
     setConnecting(true)
@@ -72,6 +75,8 @@ export default function App() {
       if (roomRef.current) {
         roomRef.current.disconnect()
       }
+      participantUnsubscribersRef.current.forEach((fn) => fn())
+      participantUnsubscribersRef.current = []
       remoteAudioElementsRef.current.forEach((el) => el.remove())
     }
   }, [])
@@ -163,6 +168,15 @@ export default function App() {
     remoteAudioCountRef.current = 0
   }
 
+  const refreshAgentPresence = (room) => {
+    const connected = room.state === 'connected'
+    setVoiceConnected(connected)
+    const hasAgent = Array.from(room.remoteParticipants.values()).some((participant) =>
+      participant.identity?.includes('agent') || participant.name?.toLowerCase().includes('agent')
+    )
+    setAgentJoined(hasAgent)
+  }
+
   const registerRoomListeners = (room) => {
     room.on(RoomEvent.TrackSubscribed, (track, _pub, _participant) => {
       if (track.kind !== Track.Kind.Audio) return
@@ -188,13 +202,21 @@ export default function App() {
     })
 
     room.on(RoomEvent.Reconnecting, () => setAvatarState('thinking'))
-    room.on(RoomEvent.Reconnected, () => setAvatarState('listening'))
+    room.on(RoomEvent.Reconnected, () => {
+      setAvatarState('listening')
+      setVoiceConnected(true)
+      refreshAgentPresence(room)
+    })
     room.on(RoomEvent.Disconnected, () => {
       setVoiceActive(false)
       setVoiceConnecting(false)
+      setVoiceConnected(false)
+      setAgentJoined(false)
       setAvatarState('idle')
       cleanupRemoteAudio()
     })
+    room.on(RoomEvent.ParticipantConnected, () => refreshAgentPresence(room))
+    room.on(RoomEvent.ParticipantDisconnected, () => refreshAgentPresence(room))
   }
 
   const handleStartVoice = async () => {
@@ -225,6 +247,8 @@ export default function App() {
       await room.connect(tokenData.livekit_url, tokenData.participant_token)
       await room.localParticipant.setMicrophoneEnabled(true)
       roomRef.current = room
+      setVoiceConnected(true)
+      refreshAgentPresence(room)
 
       setVoiceActive(true)
       setVoiceConnecting(false)
@@ -256,6 +280,8 @@ export default function App() {
       roomRef.current.disconnect()
       roomRef.current = null
     }
+    setVoiceConnected(false)
+    setAgentJoined(false)
     cleanupRemoteAudio()
     setVoiceActive(false)
     setAvatarState('idle')
@@ -342,6 +368,14 @@ export default function App() {
       <main className="grid">
         <section className="card avatar-card">
           <AvatarFace state={avatarState} />
+          <div className="voice-health">
+            <span className={`health-pill ${voiceConnected ? 'ok' : 'bad'}`}>
+              Voice {voiceConnected ? 'connected' : 'disconnected'}
+            </span>
+            <span className={`health-pill ${agentJoined ? 'ok' : 'bad'}`}>
+              Agent {agentJoined ? 'joined' : 'not joined'}
+            </span>
+          </div>
           {roomName && <div className="voice-room">Live room: {roomName}</div>}
           <div className="mic-panel">
             <div className="mic-row">

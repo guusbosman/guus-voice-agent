@@ -181,6 +181,32 @@ body {
   padding: 6px 8px;
 }
 
+.voice-health {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+}
+
+.health-pill {
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+}
+
+.health-pill.ok {
+  color: #1f6f43;
+  background: #e8f6ed;
+  border-color: #b6dec5;
+}
+
+.health-pill.bad {
+  color: #7f3535;
+  background: #ffecec;
+  border-color: #f0c2c2;
+}
+
 .mic-panel {
   width: 100%;
   background: #fff6ee;
