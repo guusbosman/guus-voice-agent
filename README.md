@@ -51,6 +51,12 @@ Web-first architecture and delivery plan for building a natural, low-latency voi
 3. Add production hardening.
 4. Build native Android client using same backend and agent.
 
+## Future Modalities
+
+- Text input in the same session: add user text events and mixed turn rendering.
+- Image upload support: add secure upload endpoint + storage and pass image references to agent tools.
+- Sequence recommendation: ship text first, then image upload.
+
 ## Success Metrics
 
 - Median time to first assistant audio < 900 ms
