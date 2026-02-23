@@ -20,6 +20,7 @@ Web-first architecture and delivery plan for building a natural, low-latency voi
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Backend and Knowledge Integration](docs/backend-and-knowledge.md)
 - [MVP Plan](docs/mvp-plan.md)
 - [Android Native Transition](docs/android-native-transition.md)
 - [Security and Operations](docs/security-and-ops.md)
@@ -31,6 +32,7 @@ Web-first architecture and delivery plan for building a natural, low-latency voi
 ├── README.md
 ├── docs/
 │   ├── architecture.md
+│   ├── backend-and-knowledge.md
 │   ├── mvp-plan.md
 │   ├── android-native-transition.md
 │   └── security-and-ops.md
@@ -53,3 +55,9 @@ Web-first architecture and delivery plan for building a natural, low-latency voi
 - Session success rate > 98%
 - Reconnect recovery under 3 seconds on transient network drop
 
+## Backend Summary
+
+- API service (control plane): auth, token issuance, session lifecycle, rate limiting.
+- Agent service (realtime plane): LiveKit Agent runtime, OpenAI Realtime orchestration, tool calls.
+- LLM: managed OpenAI Realtime model invoked by the agent service.
+- Custom sources: exposed via agent tools (RAG, SQL, REST, internal APIs), with per-user authorization.
