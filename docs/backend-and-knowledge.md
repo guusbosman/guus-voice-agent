@@ -22,6 +22,10 @@ Optional support services:
 - DynamoDB for session metadata, summaries, and audit trails.
 - Redis for rate limiting, short-lived state, and idempotency keys.
 
+Deployment target:
+
+- ECS on Fargate for both services, deployed manually from a developer laptop.
+
 ## Where The LLM Lives
 
 The LLM is accessed through OpenAI Realtime from the agent service. You do not need to run your own LLM server for the MVP.

@@ -41,9 +41,20 @@ Track at minimum:
 - Rollback procedure for agent deployment
 - Dependency outage behavior (degraded mode messaging)
 
+## Deployment Model
+
+- Runtime: ECS on Fargate for `api` and `agent-service`.
+- Container registry: Amazon ECR.
+- Delivery: manual deploys from developer laptop (no GitHub Actions).
+- Minimum manual deployment steps:
+1. Build and tag container image locally.
+2. Push image to ECR.
+3. Update ECS task definition image tag.
+4. Trigger ECS service deployment.
+5. Verify health checks and rollback if needed.
+
 ## Cost Controls
 
 - Per-session usage accounting
 - Daily budget alarms
 - Automatic cutoff thresholds for abusive spikes
-

@@ -103,3 +103,32 @@ Each event should include:
 - Room disconnect: exponential backoff reconnect (max 5 attempts).
 - Agent crash: auto-restart worker and emit `session.error` to client.
 - OpenAI upstream timeout: emit fallback voice/text response and ask user to retry.
+
+## AWS Deployment Topology
+
+- API service runs as an ECS Fargate service.
+- Agent service runs as a separate ECS Fargate service.
+- API service uses DynamoDB for durable session metadata.
+- Optional Redis (ElastiCache) supports rate limits and short-lived state.
+- Secrets are stored in AWS Secrets Manager.
+- Deployments are triggered manually from a developer laptop.
+
+```mermaid
+flowchart LR
+    U[User Browser] -->|HTTPS| ALB[Amazon ALB]
+    ALB --> API[ECS Fargate Service: API FastAPI]
+    U -->|WebRTC| LK[LiveKit Cloud]
+    AG[ECS Fargate Service: Agent Service]
+    AG <--> LK
+    AG <--> OAI[OpenAI Realtime API]
+    API --> DDB[(Amazon DynamoDB)]
+    API --> SM[AWS Secrets Manager]
+    AG --> SM
+    AG --> REDIS[(Amazon ElastiCache Redis)]
+    AG --> GS[Google Sheets API]
+    DEV[Developer Laptop] --> ECR[Amazon ECR]
+    DEV --> ECS[Amazon ECS]
+    ECR --> ECS
+    ECS --> API
+    ECS --> AG
+```

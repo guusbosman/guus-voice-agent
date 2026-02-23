@@ -70,3 +70,10 @@ Web-first architecture and delivery plan for building a natural, low-latency voi
 - Agent service (realtime plane): LiveKit Agent runtime, OpenAI Realtime orchestration, tool calls.
 - LLM: managed OpenAI Realtime model invoked by the agent service.
 - Custom sources: simple agent tools for Google Sheets and DynamoDB reads/writes with per-user authorization.
+
+## Deployment Choices
+
+- Compute: AWS ECS on Fargate for both `api` and `agent-service`.
+- Data: DynamoDB (primary), optional ElastiCache Redis for short-lived state.
+- Secrets: AWS Secrets Manager.
+- Deploy workflow: manual deploys from laptop (no GitHub Actions pipeline).
