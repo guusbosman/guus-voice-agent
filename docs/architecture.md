@@ -109,7 +109,6 @@ Each event should include:
 - API service runs as an ECS Fargate service.
 - Agent service runs as a separate ECS Fargate service.
 - API service uses DynamoDB for durable session metadata.
-- Optional Redis (ElastiCache) supports rate limits and short-lived state.
 - Secrets are stored in AWS Secrets Manager.
 - Deployments are triggered manually from a developer laptop.
 
@@ -124,7 +123,6 @@ flowchart LR
     API --> DDB[(Amazon DynamoDB)]
     API --> SM[AWS Secrets Manager]
     AG --> SM
-    AG --> REDIS[(Amazon ElastiCache Redis)]
     AG --> GS[Google Sheets API]
     DEV[Developer Laptop] --> ECR[Amazon ECR]
     DEV --> ECS[Amazon ECS]

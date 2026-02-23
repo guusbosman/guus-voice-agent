@@ -74,6 +74,6 @@ Web-first architecture and delivery plan for building a natural, low-latency voi
 ## Deployment Choices
 
 - Compute: AWS ECS on Fargate for both `api` and `agent-service`.
-- Data: DynamoDB (primary), optional ElastiCache Redis for short-lived state.
+- Data: DynamoDB only.
 - Secrets: AWS Secrets Manager.
 - Deploy workflow: manual deploys from laptop (no GitHub Actions pipeline).

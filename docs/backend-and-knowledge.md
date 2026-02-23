@@ -20,7 +20,6 @@ Use two services, each with a clear responsibility boundary.
 Optional support services:
 
 - DynamoDB for session metadata, summaries, and audit trails.
-- Redis for rate limiting, short-lived state, and idempotency keys.
 
 Deployment target:
 
@@ -101,7 +100,7 @@ If optimizing for speed of delivery:
 
 - API service: FastAPI
 - Agent service: Python LiveKit Agents runtime
-- Storage: DynamoDB + Redis
+- Storage: DynamoDB
 - Observability: OpenTelemetry + Prometheus/Grafana (or hosted equivalent)
 
 ## Scalability Notes
