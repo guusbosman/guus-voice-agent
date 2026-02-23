@@ -43,11 +43,10 @@ async def ensure_room_and_dispatch(room_name: str) -> None:
             pass
 
         try:
-            existing = await lkapi.agent_dispatch.list_dispatch(
-                livekit_api.ListAgentDispatchRequest(room=room_name)
-            )
+            existing = await lkapi.agent_dispatch.list_dispatch(room_name=room_name)
+            dispatches = existing if isinstance(existing, list) else existing.agent_dispatches
             already_dispatched = any(
-                dispatch.agent_name == settings.livekit_agent_name for dispatch in existing.agent_dispatches
+                dispatch.agent_name == settings.livekit_agent_name for dispatch in dispatches
             )
             if not already_dispatched:
                 await lkapi.agent_dispatch.create_dispatch(
