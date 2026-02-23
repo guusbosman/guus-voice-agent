@@ -1,79 +1,94 @@
-# LiveKit Voice Agent Blueprint
+# Guus Voice Agent
 
-Web-first architecture and delivery plan for building a natural, low-latency voice conversation app using LiveKit and OpenAI Realtime, with a later migration path to native Android.
+Single-repo implementation for a Tulip-branded voice agent product:
 
-## Goals
+- `web/`: browser UI with animated avatar, text chat, and voice controls
+- `api/`: Python FastAPI backend (sessions, chat, LiveKit token placeholder)
+- `docs/`: architecture and product docs
+- `scripts/`: manual AWS deployment scripts
 
-- Ship a browser MVP quickly to validate conversation quality.
-- Reuse backend contracts when moving to Android native.
-- Avoid building low-level speech pipeline orchestration from scratch.
-- Include a lightweight smiley avatar that reflects conversation state in real time.
+## Current Build
 
-## Stack At A Glance
+### UI (`web/`)
 
-- Client (Web MVP): React + Vite + LiveKit JS SDK
-- Realtime transport: LiveKit room (WebRTC)
-- Agent runtime: LiveKit Agents + OpenAI Realtime plugin
-- Backend API: lightweight token/auth service (Python/FastAPI)
-- Storage (optional): DynamoDB for session metadata and analytics
-- Observability: OpenTelemetry + metrics dashboard (latency, interruption rate, reconnects)
+- Tulip logo branding
+- Animated smiley avatar with states: `idle`, `listening`, `thinking`, `speaking`, `happy`
+- Text conversation panel
+- Voice input controls (browser speech recognition for MVP preview)
+- Speech synthesis for assistant responses where browser support exists
 
-## Documentation
+### API (`api/`)
 
-- [Architecture](docs/architecture.md)
-- [Backend and Knowledge Integration](docs/backend-and-knowledge.md)
-- [Avatar UI](docs/avatar-ui.md)
-- [MVP Plan](docs/mvp-plan.md)
-- [Android Native Transition](docs/android-native-transition.md)
-- [Security and Operations](docs/security-and-ops.md)
+- `GET /health`
+- `POST /sessions`
+- `GET /sessions/{session_id}`
+- `POST /sessions/{session_id}/end`
+- `POST /chat/message`
+- `POST /livekit/token` (placeholder response to be replaced with real LiveKit JWT)
 
-## Suggested Repository Layout
+Persistence is DynamoDB-first, with in-memory fallback for local development.
 
-```text
-.
-├── README.md
-├── docs/
-│   ├── architecture.md
-│   ├── backend-and-knowledge.md
-│   ├── avatar-ui.md
-│   ├── mvp-plan.md
-│   ├── android-native-transition.md
-│   └── security-and-ops.md
-├── web/                 # browser client (React/Vite)
-├── agent-service/       # LiveKit Agent process
-└── api/                 # token/auth and app backend
+## Local Development
+
+### 1. Run API
+
+```bash
+cd api
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-## Delivery Sequence
+### 2. Run Web
 
-1. Build web voice loop and validate quality.
-2. Stabilize backend contracts and observability.
-3. Add production hardening.
-4. Build native Android client using same backend and agent.
+```bash
+cd web
+npm install
+npm run dev
+```
 
-## Future Modalities
+Optional web env:
 
-- Text input in the same session: add user text events and mixed turn rendering.
-- Image upload support: add secure upload endpoint + storage and pass image references to agent tools.
-- Sequence recommendation: ship text first, then image upload.
+```bash
+# web/.env
+VITE_API_BASE_URL=http://localhost:8000
+```
 
-## Success Metrics
+## AWS Deployment (API on ECS Fargate)
 
-- Median time to first assistant audio < 900 ms
-- Turn interruption responsiveness < 300 ms
-- Session success rate > 98%
-- Reconnect recovery under 3 seconds on transient network drop
+Manual laptop deployment script:
 
-## Backend Summary
+- `scripts/deploy_api_fargate.sh`
 
-- API service (control plane): auth, token issuance, session lifecycle, rate limiting.
-- Agent service (realtime plane): LiveKit Agent runtime, OpenAI Realtime orchestration, tool calls.
-- LLM: managed OpenAI Realtime model invoked by the agent service.
-- Custom sources: simple agent tools for Google Sheets and DynamoDB reads/writes with per-user authorization.
+Example:
 
-## Deployment Choices
+```bash
+AWS_ACCOUNT_ID=123456789012 \
+AWS_REGION=us-east-1 \
+EXECUTION_ROLE_ARN=arn:aws:iam::123456789012:role/ecsTaskExecutionRole \
+TASK_ROLE_ARN=arn:aws:iam::123456789012:role/guus-voice-agent-api-task-role \
+SUBNET_IDS=subnet-aaa,subnet-bbb \
+SECURITY_GROUP_IDS=sg-abc123 \
+./scripts/deploy_api_fargate.sh
+```
 
-- Compute: AWS ECS on Fargate for both `api` and `agent-service`.
-- Data: DynamoDB only.
-- Secrets: AWS Secrets Manager.
-- Deploy workflow: manual deploys from laptop (no GitHub Actions pipeline).
+Reference task definition template:
+
+- `infra/ecs-task-definitions/api-task-definition.example.json`
+
+## Architecture And Product Docs
+
+- `docs/architecture.md`
+- `docs/backend-and-knowledge.md`
+- `docs/avatar-ui.md`
+- `docs/mvp-plan.md`
+- `docs/android-native-transition.md`
+- `docs/security-and-ops.md`
+
+## Next Implementation Steps
+
+1. Replace `POST /livekit/token` placeholder with real LiveKit JWT minting.
+2. Add `agent-service/` runtime for LiveKit Agents + OpenAI Realtime.
+3. Wire real voice events from the agent into avatar state updates.
+4. Add Google Sheets and DynamoDB tool integrations in the agent layer.
