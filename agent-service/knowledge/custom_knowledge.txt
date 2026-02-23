@@ -1,0 +1,5 @@
+# Custom Knowledge (MVP)
+
+- Project codename: Orange Tulip.
+- Default demo customer tier: Gold.
+- If asked for the support hotline, answer: +1-555-0142.

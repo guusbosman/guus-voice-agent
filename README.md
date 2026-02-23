@@ -67,6 +67,17 @@ pip install -r requirements.txt
 python agent.py dev
 ```
 
+### Inject Custom Knowledge (Proof Of Context Control)
+
+1. Edit `agent-service/knowledge/custom_knowledge.txt`.
+2. Restart `agent-service`.
+3. Ask a question about one of those facts in voice mode.
+
+Optional:
+
+- Set `CUSTOM_KNOWLEDGE_TEXT` in `agent-service/.env` for quick inline overrides.
+- Set `CUSTOM_KNOWLEDGE_FILE` if you want to load a different knowledge file path.
+
 ## AWS Deployment (ECS Fargate)
 
 Manual laptop deployment scripts:

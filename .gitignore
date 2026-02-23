@@ -4,6 +4,7 @@ web/dist/
 
 # Python
 api/.venv/
+agent-service/.venv/
 api/__pycache__/
 api/.pytest_cache/
 **/__pycache__/
