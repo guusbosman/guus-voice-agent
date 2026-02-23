@@ -10,6 +10,8 @@ function makeId() {
 
 export default function App() {
   const [sessionId, setSessionId] = useState(null)
+  const [apiOnline, setApiOnline] = useState(true)
+  const [connecting, setConnecting] = useState(false)
   const [avatarState, setAvatarState] = useState('idle')
   const [textInput, setTextInput] = useState('')
   const [messages, setMessages] = useState([
@@ -19,23 +21,31 @@ export default function App() {
   const [voiceActive, setVoiceActive] = useState(false)
   const recognitionRef = useRef(null)
 
-  useEffect(() => {
-    const createSession = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/sessions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: 'demo-user', channel: 'web' })
-        })
-        if (!res.ok) return
-        const data = await res.json()
-        setSessionId(data.session_id)
-      } catch (_err) {
-        // Keep UI functional in offline mode.
-      }
-    }
+  const reconnectApi = async () => {
+    setConnecting(true)
+    try {
+      const healthRes = await fetch(`${API_BASE_URL}/health`)
+      if (!healthRes.ok) throw new Error('Health check failed')
 
-    createSession()
+      const sessionRes = await fetch(`${API_BASE_URL}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: 'demo-user', channel: 'web' })
+      })
+      if (!sessionRes.ok) throw new Error('Session create failed')
+
+      const data = await sessionRes.json()
+      setSessionId(data.session_id)
+      setApiOnline(true)
+    } catch (_err) {
+      setApiOnline(false)
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  useEffect(() => {
+    reconnectApi()
   }, [])
 
   const canUseSpeech = useMemo(() => {
@@ -111,6 +121,7 @@ export default function App() {
       })
       if (!res.ok) throw new Error('Request failed')
       const data = await res.json()
+      setApiOnline(true)
       const answer = data.reply || 'I heard you. What should I do next?'
 
       setAvatarState('speaking')
@@ -126,6 +137,7 @@ export default function App() {
 
       setTimeout(() => setAvatarState('idle'), 900)
     } catch (_err) {
+      setApiOnline(false)
       setMessages((prev) => [...prev, { id: makeId(), role: 'assistant', text: 'Unable to reach API. Please try again.' }])
       setAvatarState('idle')
     } finally {
@@ -150,6 +162,14 @@ export default function App() {
         </div>
         <span className="status">{sessionId ? `Session ${sessionId.slice(0, 8)}` : 'Starting session...'}</span>
       </header>
+      {!apiOnline && (
+        <div className="api-warning">
+          <span>API offline at {API_BASE_URL}</span>
+          <button className="btn secondary reconnect-btn" onClick={reconnectApi} disabled={connecting}>
+            {connecting ? 'Reconnecting...' : 'Reconnect'}
+          </button>
+        </div>
+      )}
 
       <main className="grid">
         <section className="card avatar-card">
