@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from livekit import api as livekit_api
 
 from .config import settings
 from .models import (
@@ -58,16 +59,28 @@ def end_session(session_id: str) -> SessionResponse:
 
 @app.post("/livekit/token", response_model=TokenResponse)
 def mint_livekit_token(payload: TokenRequest) -> TokenResponse:
-    record = repo.create_session(user_id=payload.user_id, channel="web")
-    expires = datetime.utcnow() + timedelta(minutes=10)
+    if not settings.livekit_url:
+        raise HTTPException(status_code=500, detail="LIVEKIT_URL is not configured")
+    if not settings.livekit_api_key or not settings.livekit_api_secret:
+        raise HTTPException(status_code=500, detail="LiveKit credentials are not configured")
 
-    # Placeholder token. Replace this with real LiveKit JWT minting.
-    fake_token = f"dev-token-{record.session_id[:8]}"
+    record = repo.create_session(user_id=payload.user_id, channel="web")
+    expires = datetime.utcnow() + timedelta(seconds=settings.livekit_token_ttl_seconds)
+    room_name = f"session-{record.session_id[:8]}"
+    identity = f"{payload.user_id}-{record.session_id[:8]}"
+
+    participant_token = (
+        livekit_api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret)
+        .with_identity(identity)
+        .with_name(payload.user_id)
+        .with_grants(livekit_api.VideoGrants(room_join=True, room=room_name))
+        .to_jwt()
+    )
 
     return TokenResponse(
         livekit_url=settings.livekit_url,
-        room_name=f"session-{record.session_id[:8]}",
-        participant_token=fake_token,
+        room_name=room_name,
+        participant_token=participant_token,
         session_id=record.session_id,
         expires_at=expires.replace(microsecond=0).isoformat() + "Z",
     )

@@ -3,7 +3,8 @@
 Single-repo implementation for a Tulip-branded voice agent product:
 
 - `web/`: browser UI with animated avatar, text chat, and voice controls
-- `api/`: Python FastAPI backend (sessions, chat, LiveKit token placeholder)
+- `api/`: Python FastAPI backend (sessions, chat, LiveKit token minting)
+- `agent-service/`: LiveKit Agents worker using OpenAI Realtime
 - `docs/`: architecture and product docs
 - `scripts/`: manual AWS deployment scripts
 
@@ -24,7 +25,7 @@ Single-repo implementation for a Tulip-branded voice agent product:
 - `GET /sessions/{session_id}`
 - `POST /sessions/{session_id}/end`
 - `POST /chat/message`
-- `POST /livekit/token` (placeholder response to be replaced with real LiveKit JWT)
+- `POST /livekit/token` (real LiveKit JWT with room join grant)
 
 Persistence is DynamoDB-first, with in-memory fallback for local development.
 
@@ -55,11 +56,22 @@ Optional web env:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-## AWS Deployment (API on ECS Fargate)
+### 3. Run Agent Service
 
-Manual laptop deployment script:
+```bash
+cd agent-service
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python agent.py dev
+```
+
+## AWS Deployment (ECS Fargate)
+
+Manual laptop deployment scripts:
 
 - `scripts/deploy_api_fargate.sh`
+- `scripts/deploy_agent_fargate.sh`
 
 Example:
 
@@ -76,6 +88,7 @@ SECURITY_GROUP_IDS=sg-abc123 \
 Reference task definition template:
 
 - `infra/ecs-task-definitions/api-task-definition.example.json`
+- `infra/ecs-task-definitions/agent-task-definition.example.json`
 
 ## Architecture And Product Docs
 
@@ -88,7 +101,7 @@ Reference task definition template:
 
 ## Next Implementation Steps
 
-1. Replace `POST /livekit/token` placeholder with real LiveKit JWT minting.
-2. Add `agent-service/` runtime for LiveKit Agents + OpenAI Realtime.
+1. Wire API session creation to deterministic LiveKit room naming used by `agent-service`.
+2. Add Google Sheets and DynamoDB tool calls inside `agent-service/agent.py`.
 3. Wire real voice events from the agent into avatar state updates.
-4. Add Google Sheets and DynamoDB tool integrations in the agent layer.
+4. Add auth and rate limiting middleware to API endpoints.
