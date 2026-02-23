@@ -13,8 +13,8 @@ Web-first architecture and delivery plan for building a natural, low-latency voi
 - Client (Web MVP): React + Vite + LiveKit JS SDK
 - Realtime transport: LiveKit room (WebRTC)
 - Agent runtime: LiveKit Agents + OpenAI Realtime plugin
-- Backend API: lightweight token/auth service (Node.js or Python)
-- Storage (optional): Postgres for session metadata and analytics
+- Backend API: lightweight token/auth service (Python/FastAPI)
+- Storage (optional): DynamoDB for session metadata and analytics
 - Observability: OpenTelemetry + metrics dashboard (latency, interruption rate, reconnects)
 
 ## Documentation

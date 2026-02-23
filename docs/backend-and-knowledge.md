@@ -19,7 +19,7 @@ Use two services, each with a clear responsibility boundary.
 
 Optional support services:
 
-- Postgres for session metadata, summaries, and audit trails.
+- DynamoDB for session metadata, summaries, and audit trails.
 - Redis for rate limiting, short-lived state, and idempotency keys.
 
 ## Where The LLM Lives
@@ -96,14 +96,12 @@ If optimizing for speed of delivery:
 
 - API service: FastAPI
 - Agent service: Python LiveKit Agents runtime
-- Storage: Postgres + Redis
+- Storage: DynamoDB + Redis
 - Observability: OpenTelemetry + Prometheus/Grafana (or hosted equivalent)
-
-If your team is TypeScript-heavy, keep API in NestJS and maintain the agent service separately in Python.
 
 ## Scalability Notes
 
 - Scale API service horizontally behind a load balancer.
 - Scale agent workers based on active sessions.
-- Keep agent workers stateless; store durable state in Postgres.
+- Keep agent workers stateless; store durable state in DynamoDB.
 - Use queue-based buffering for async post-processing (summaries, analytics).
