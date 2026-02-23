@@ -95,6 +95,7 @@ Each event should include:
 - Keep client UI stateless where possible; recover state from server events when reconnecting.
 - Keep provider and internal API secrets only in backend services.
 - Keep tool execution in agent service so source access is permission-checked server-side.
+- Keep avatar UI state event-driven (from session events), not audio-heuristic-driven, for deterministic behavior.
 
 ## Failure Handling
 

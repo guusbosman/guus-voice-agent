@@ -59,6 +59,15 @@ States:
 - Avatar always recovers to `idle` after session end or error.
 - UX clearly differentiates listening vs speaking states.
 
+## MVP Build Checklist
+
+- Add `AvatarState` enum in frontend: `idle`, `listening`, `thinking`, `speaking`, `happy`.
+- Add single reducer/controller that maps session events to `AvatarState`.
+- Implement one SVG smiley component with state-based CSS classes.
+- Add 1 timeout guard: if `thinking` exceeds 8 seconds without a new event, return to `idle`.
+- Add 1 integration test: simulated event sequence drives expected avatar state sequence.
+- Add fallback behavior: on `session.error` force avatar to `idle`.
+
 ## Future Upgrades (Optional)
 
 - Amplitude-reactive mouth animation using audio level.

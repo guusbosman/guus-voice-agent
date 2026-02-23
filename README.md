@@ -7,6 +7,7 @@ Web-first architecture and delivery plan for building a natural, low-latency voi
 - Ship a browser MVP quickly to validate conversation quality.
 - Reuse backend contracts when moving to Android native.
 - Avoid building low-level speech pipeline orchestration from scratch.
+- Include a lightweight smiley avatar that reflects conversation state in real time.
 
 ## Stack At A Glance
 
